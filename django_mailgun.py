@@ -5,6 +5,7 @@ import requests
 from django.conf import settings
 from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail.message import sanitize_address
+from django.dispatch import Signal
 from django.utils.encoding import force_text
 
 from requests.packages.urllib3.filepost import encode_multipart_formdata
@@ -31,6 +32,9 @@ HEADERS_MAP = {
     'X-Mailgun-Track-Opens': ('o:tracking-opens', lambda x: x),
     'X-Mailgun-Variables': ('v:my-var', lambda x: x),
 }
+
+
+message_sent = Signal(providing_args=['response', 'message'])
 
 
 class MailgunAPIError(Exception):
@@ -153,6 +157,12 @@ class MailgunBackend(BaseEmailBackend):
             if not self.fail_silently:
                 raise MailgunAPIError(response)
             return False
+
+        message_sent.send(
+            sender=self.__class__,
+            response=response,
+            message=email_message,
+        )
 
         return True
 
